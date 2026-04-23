@@ -2,11 +2,19 @@ import mongoose from "mongoose";
 
 const prescriptionSchema = new mongoose.Schema(
 	{
-		patientId: mongoose.Schema.Types.ObjectId,
+		patientId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Patient", // 🔹 Add this line
+			required: true,
+		},
 		doctorName: String,
 		items: [
 			{
-				drugId: mongoose.Schema.Types.ObjectId,
+				drugId: {
+					type: mongoose.Schema.Types.ObjectId,
+					ref: "Drug", // 🔹 Add this line (assuming your model is named "Drug")
+					required: true,
+				},
 				quantity: Number,
 				dosage: String,
 			},
