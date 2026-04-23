@@ -18,10 +18,8 @@ export const createPrescription = async (req, res) => {
 export const getPrescriptions = async (req, res) => {
 	try {
 		const prescriptions = await Prescription.find()
-			// 🔹 Changed "patient" to "patientId" to match your schema
-			// 🔹 Changed fields to "fullName phone gender" to match your Patient schema
 			.populate("patientId", "fullName phone gender")
-			.populate("createdBy", "name email")
+			// ❌ REMOVE THIS LINE: .populate("createdBy", "name email")
 			.sort({ createdAt: -1 });
 
 		res.json(prescriptions);
@@ -33,10 +31,11 @@ export const getPrescriptions = async (req, res) => {
 // ✅ Get Single
 export const getPrescription = async (req, res) => {
 	try {
-		const prescription = await Prescription.findById(req.params.id)
-			// 🔹 Match the field name here too
-			.populate("patientId", "fullName phone gender")
-			.populate("createdBy", "name email");
+		const prescription = await Prescription.findById(req.params.id).populate(
+			"patientId",
+			"fullName phone gender",
+		);
+		// ❌ REMOVE THIS LINE: .populate("createdBy", "name email")
 
 		if (!prescription) {
 			return res.status(404).json({ message: "Prescription not found" });
