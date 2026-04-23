@@ -18,7 +18,9 @@ export const createPrescription = async (req, res) => {
 export const getPrescriptions = async (req, res) => {
 	try {
 		const prescriptions = await Prescription.find()
-			.populate("patient", "name age gender")
+			// 🔹 Changed "patient" to "patientId" to match your schema
+			// 🔹 Changed fields to "fullName phone gender" to match your Patient schema
+			.populate("patientId", "fullName phone gender")
 			.populate("createdBy", "name email")
 			.sort({ createdAt: -1 });
 
@@ -32,7 +34,8 @@ export const getPrescriptions = async (req, res) => {
 export const getPrescription = async (req, res) => {
 	try {
 		const prescription = await Prescription.findById(req.params.id)
-			.populate("patient", "name age gender")
+			// 🔹 Match the field name here too
+			.populate("patientId", "fullName phone gender")
 			.populate("createdBy", "name email");
 
 		if (!prescription) {
