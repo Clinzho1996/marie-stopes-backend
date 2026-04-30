@@ -6,7 +6,7 @@ const adjustmentSchema = new mongoose.Schema(
 		batchId: mongoose.Schema.Types.ObjectId,
 		quantity: Number,
 		reason: String,
-		type: { type: String, enum: ["loss", "correction"] },
+		type: { type: String, enum: ["loss", "gain", "damage", "correction"] },
 		adjustedBy: mongoose.Schema.Types.ObjectId,
 	},
 	{ timestamps: true },
