@@ -1,15 +1,18 @@
+// controllers/adjustmentController.js
 import mongoose from "mongoose";
 import Batch from "../models/Batch.js";
 import InventoryLog from "../models/InventoryLog.js";
 import StockAdjustment from "../models/StockAdjustment.js";
 
-// ✅ Create Stock Adjustment (LOSS / DAMAGE / EXPIRED etc.)
+// ✅ Create Stock Adjustment (LOSS / DAMAGE / GAIN etc.)
 export const adjustStock = async (req, res) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 
 	try {
 		const { batchId, quantity, reason, type } = req.body;
+
+		console.log(`Processing adjustment - Type: ${type}, Quantity: ${quantity}`);
 
 		const batch = await Batch.findById(batchId).session(session);
 
@@ -21,12 +24,24 @@ export const adjustStock = async (req, res) => {
 			throw new Error("Quantity must be greater than 0");
 		}
 
-		if (batch.remainingQuantity < quantity) {
-			throw new Error("Insufficient stock in batch");
+		// Handle different adjustment types
+		if (type === "gain") {
+			// ✅ For GAIN: Add to remaining quantity
+			batch.remainingQuantity += quantity;
+			console.log(
+				`Gain adjustment: Adding ${quantity} to stock. New quantity: ${batch.remainingQuantity}`,
+			);
+		} else {
+			// For LOSS, DAMAGE, etc.: Subtract from remaining quantity
+			if (batch.remainingQuantity < quantity) {
+				throw new Error("Insufficient stock in batch");
+			}
+			batch.remainingQuantity -= quantity;
+			console.log(
+				`Loss/Damage adjustment: Subtracting ${quantity} from stock. New quantity: ${batch.remainingQuantity}`,
+			);
 		}
 
-		// ✅ reduce safe field (NOT total quantity)
-		batch.remainingQuantity -= quantity;
 		await batch.save({ session });
 
 		// ✅ create adjustment record
@@ -51,7 +66,7 @@ export const adjustStock = async (req, res) => {
 					drugId: batch.drugId,
 					batchId,
 					type: type || "loss",
-					quantity,
+					quantity: type === "gain" ? quantity : -quantity, // Negative for losses, positive for gains
 					reference: adj[0]._id,
 					performedBy: req.user.id,
 				},
@@ -66,7 +81,7 @@ export const adjustStock = async (req, res) => {
 	} catch (err) {
 		await session.abortTransaction();
 		session.endSession();
-
+		console.error("Adjustment error:", err);
 		res.status(400).json({ message: err.message });
 	}
 };
@@ -87,8 +102,8 @@ export const getAdjustments = async (req, res) => {
 export const getAdjustment = async (req, res) => {
 	try {
 		const adjustment = await StockAdjustment.findById(req.params.id)
-			.populate("drugId")
-			.populate("batchId");
+			.populate("drugId", "name")
+			.populate("batchId", "batchNumber");
 
 		if (!adjustment) {
 			return res.status(404).json({ message: "Adjustment not found" });
@@ -113,15 +128,24 @@ export const updateAdjustment = async (req, res) => {
 
 		const batch = await Batch.findById(adj.batchId).session(session);
 
-		// 🔁 reverse previous deduction
-		batch.remainingQuantity += adj.quantity;
-
-		// apply new deduction
-		if (req.body.quantity > batch.remainingQuantity) {
-			throw new Error("Insufficient stock for update");
+		// 🔁 Reverse previous adjustment
+		if (adj.type === "gain") {
+			// If it was a gain, subtract what we added
+			batch.remainingQuantity -= adj.quantity;
+		} else {
+			// If it was a loss/damage, add back what we removed
+			batch.remainingQuantity += adj.quantity;
 		}
 
-		batch.remainingQuantity -= req.body.quantity;
+		// Apply new adjustment
+		if (req.body.type === "gain") {
+			batch.remainingQuantity += req.body.quantity;
+		} else {
+			if (batch.remainingQuantity < req.body.quantity) {
+				throw new Error("Insufficient stock for update");
+			}
+			batch.remainingQuantity -= req.body.quantity;
+		}
 
 		await batch.save({ session });
 
@@ -135,7 +159,7 @@ export const updateAdjustment = async (req, res) => {
 	} catch (err) {
 		await session.abortTransaction();
 		session.endSession();
-
+		console.error("Update adjustment error:", err);
 		res.status(400).json({ message: err.message });
 	}
 };
@@ -153,10 +177,16 @@ export const deleteAdjustment = async (req, res) => {
 
 		const batch = await Batch.findById(adj.batchId).session(session);
 
-		// restore stock
-		batch.remainingQuantity += adj.quantity;
-		await batch.save({ session });
+		// Reverse the adjustment
+		if (adj.type === "gain") {
+			// If it was a gain, subtract what we added
+			batch.remainingQuantity -= adj.quantity;
+		} else {
+			// If it was a loss/damage, add back what we removed
+			batch.remainingQuantity += adj.quantity;
+		}
 
+		await batch.save({ session });
 		await adj.deleteOne({ session });
 
 		await session.commitTransaction();
@@ -166,7 +196,7 @@ export const deleteAdjustment = async (req, res) => {
 	} catch (err) {
 		await session.abortTransaction();
 		session.endSession();
-
+		console.error("Delete adjustment error:", err);
 		res.status(400).json({ message: err.message });
 	}
 };
