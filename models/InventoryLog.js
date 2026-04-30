@@ -6,7 +6,15 @@ const inventoryLogSchema = new mongoose.Schema(
 		batchId: mongoose.Schema.Types.ObjectId,
 		type: {
 			type: String,
-			enum: ["purchase", "dispense", "loss", "adjustment"],
+			enum: [
+				"purchase",
+				"dispense",
+				"loss",
+				"gain",
+				"damage",
+				"correction",
+				"adjustment",
+			],
 		},
 		quantity: Number,
 		reference: String,
