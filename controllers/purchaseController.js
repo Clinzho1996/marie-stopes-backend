@@ -18,10 +18,13 @@ export const createPO = async (req, res) => {
 };
 
 // ✅ Get All Purchase Orders
+// controllers/purchaseController.js
+
+// ✅ Get All Purchase Orders
 export const getPOs = async (req, res) => {
 	try {
 		const pos = await PurchaseOrder.find()
-			.populate("supplier", "name")
+			.populate("supplierId", "name") // Changed from "supplier" to "supplierId"
 			.sort({ createdAt: -1 });
 
 		res.json(pos);
@@ -34,7 +37,7 @@ export const getPOs = async (req, res) => {
 export const getPO = async (req, res) => {
 	try {
 		const po = await PurchaseOrder.findById(req.params.id)
-			.populate("supplier", "name")
+			.populate("supplierId", "name") // Changed from "supplier" to "supplierId"
 			.populate("createdBy", "name");
 
 		if (!po) {
