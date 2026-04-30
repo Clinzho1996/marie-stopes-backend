@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Batch from "../models/Batch.js";
 import InventoryLog from "../models/InventoryLog.js";
 import PurchaseOrder from "../models/PurchaseOrder.js";
